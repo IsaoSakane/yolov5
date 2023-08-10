@@ -94,6 +94,10 @@ def run(
     stride, names, pt = model.stride, model.names, model.pt
     imgsz = check_img_size(imgsz, s=stride)  # check image size
 
+    person_id = next( map( lambda x:x[0],  filter( lambda x:x[1] == 'person', names.items() ) ) )
+    def IsExcludeObject( cls:int ):
+        return cls == person_id
+    
     # Dataloader
     if webcam:
         view_img = check_imshow()
@@ -158,14 +162,17 @@ def run(
 
                 # Write results
                 for *xyxy, conf, cls in reversed(det):
-                    if save_txt:  # Write to file
+                    c = int(cls)  # integer class
+                    if save_txt and not IsExcludeObject( c ): # Write to file
                         xywh = (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()  # normalized xywh
-                        line = (cls, *xywh, conf) if save_conf else (cls, *xywh)  # label format
+                        
+                        # line = (cls, *xywh, conf) if save_conf else (cls, *xywh)  # label format
+                        line = (frame, 0, *xywh, cls, -1, -1, i, conf) if save_conf else (frame, 0, *xywh, cls , -1, -1, i)  # label format
+                        
                         with open(f'{txt_path}.txt', 'a') as f:
                             f.write(('%g ' * len(line)).rstrip() % line + '\n')
 
                     if save_img or save_crop or view_img:  # Add bbox to image
-                        c = int(cls)  # integer class
                         label = None if hide_labels else (names[c] if hide_conf else f'{names[c]} {conf:.2f}')
                         annotator.box_label(xyxy, label, color=colors(c, True))
                     if save_crop:
